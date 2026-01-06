@@ -1,0 +1,5 @@
+{
+  "name": "BioPay - Biometric Payroll System",
+  "description": "A standard-compliant biometric payroll management system with real-time attendance and PDF reporting.",
+  "requestFramePermissions": []
+}
