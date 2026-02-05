@@ -9,33 +9,33 @@ interface AttendanceProps {
   onAddActivity: (text: string, status: 'success' | 'info' | 'warning') => void;
 }
 
+// Helper to parse time string (e.g., "08:30 AM") to minutes since midnight
+const parseTimeToMinutes = (timeStr: string): number => {
+  const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)?/i);
+  if (!match) return 0;
+  let hours = parseInt(match[1]);
+  const minutes = parseInt(match[2]);
+  const ampm = match[3];
+
+  if (ampm) {
+    if (ampm.toUpperCase() === 'PM' && hours < 12) hours += 12;
+    if (ampm.toUpperCase() === 'AM' && hours === 12) hours = 0;
+  }
+  return hours * 60 + minutes;
+};
+
+// Helper to format decimal hours into "Xh Ym"
+const formatHoursMinutes = (decimalHours: number): string => {
+  if (decimalHours === 0) return '0h 0m';
+  const totalMinutes = Math.round(decimalHours * 60);
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  return `${h}h ${m}m`;
+};
+
 const Attendance: React.FC<AttendanceProps> = ({ user, records, onUpdateRecords, onAddActivity }) => {
   const [scanStep, setScanStep] = useState<'idle' | 'scanning' | 'authenticated'>('idle');
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
-
-  // Helper to parse time string (e.g., "08:30 AM") to minutes since midnight
-  const parseTimeToMinutes = (timeStr: string): number => {
-    const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)?/i);
-    if (!match) return 0;
-    let hours = parseInt(match[1]);
-    const minutes = parseInt(match[2]);
-    const ampm = match[3];
-
-    if (ampm) {
-      if (ampm.toUpperCase() === 'PM' && hours < 12) hours += 12;
-      if (ampm.toUpperCase() === 'AM' && hours === 12) hours = 0;
-    }
-    return hours * 60 + minutes;
-  };
-
-  // Helper to format decimal hours into "Xh Ym"
-  const formatHoursMinutes = (decimalHours: number): string => {
-    if (decimalHours === 0) return '0h 0m';
-    const totalMinutes = Math.round(decimalHours * 60);
-    const h = Math.floor(totalMinutes / 60);
-    const m = totalMinutes % 60;
-    return `${h}h ${m}m`;
-  };
 
   const startScan = () => {
     setScanStep('scanning');

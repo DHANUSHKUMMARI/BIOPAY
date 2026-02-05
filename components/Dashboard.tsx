@@ -16,26 +16,34 @@ const Dashboard: React.FC<DashboardProps> = ({ user, attendance, payroll, activi
   const [timeframe, setTimeframe] = useState<'7days' | '30days'>('7days');
   const [showActivityModal, setShowActivityModal] = useState(false);
   const isAdmin = user.role === UserRole.ADMIN || user.role === UserRole.HR;
+  const now = new Date();
+  const todayStr = now.toISOString().split('T')[0];
+  const monthPrefix = `${now.getFullYear()}-${(now.getMonth() + 1).toString().padStart(2, '0')}`;
 
   const userAttendance = useMemo(() => {
     return isAdmin ? attendance : attendance.filter(r => r.userId === user.id);
   }, [attendance, isAdmin, user.id]);
 
+  const attendanceHoursByDate = useMemo(() => {
+    return userAttendance.reduce<Record<string, number>>((acc, record) => {
+      acc[record.date] = (acc[record.date] || 0) + record.totalHours;
+      return acc;
+    }, {});
+  }, [userAttendance]);
+
   const chartData = useMemo(() => {
     const days = timeframe === '7days' ? 7 : 30;
     const result = [];
-    const now = new Date();
+    const baseDate = new Date(todayStr);
     
     for (let i = days - 1; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(now.getDate() - i);
+      const d = new Date(baseDate);
+      d.setDate(baseDate.getDate() - i);
       const dateStr = d.toISOString().split('T')[0];
       const dayName = d.toLocaleDateString('en-US', { weekday: 'short' });
       
       // Calculate daily total for all users if admin, else just the user
-      const dailyHours = userAttendance
-        .filter(r => r.date === dateStr)
-        .reduce((sum, rec) => sum + rec.totalHours, 0);
+      const dailyHours = attendanceHoursByDate[dateStr] ?? 0;
 
       result.push({
         name: timeframe === '7days' ? dayName : dateStr.split('-')[2],
@@ -44,7 +52,7 @@ const Dashboard: React.FC<DashboardProps> = ({ user, attendance, payroll, activi
       });
     }
     return result;
-  }, [userAttendance, timeframe]);
+  }, [attendanceHoursByDate, timeframe, todayStr]);
 
   const hasData = useMemo(() => chartData.some(d => d.hours > 0), [chartData]);
 
@@ -54,11 +62,6 @@ const Dashboard: React.FC<DashboardProps> = ({ user, attendance, payroll, activi
   const chartAccent = isDark ? '#10b981' : '#3b82f6';
 
   const workerStats = useMemo(() => {
-    const todayStr = new Date().toISOString().split('T')[0];
-    const currentMonthNum = new Date().getMonth() + 1;
-    const currentYear = new Date().getFullYear();
-    const monthPrefix = `${currentYear}-${currentMonthNum.toString().padStart(2, '0')}`;
-    
     const totalHoursMonth = userAttendance
       .filter(r => r.date.startsWith(monthPrefix))
       .reduce((acc, curr) => acc + curr.totalHours, 0);
@@ -71,11 +74,15 @@ const Dashboard: React.FC<DashboardProps> = ({ user, attendance, payroll, activi
       { label: 'Designation', value: user.department || 'Staff', icon: '🏷️', color: 'bg-indigo-500' },
       { label: 'Status', value: 'Active', icon: '⚡', color: 'bg-amber-500' },
     ];
-  }, [userAttendance, user]);
+  }, [monthPrefix, userAttendance, user]);
+
+  const attendanceTodayCount = useMemo(() => {
+    return attendance.filter(r => r.date === todayStr).length;
+  }, [attendance, todayStr]);
 
   const stats = isAdmin ? [
     { label: 'Total Workers', value: '128', icon: '👥', color: 'bg-blue-500' },
-    { label: 'Today Attendance', value: `${attendance.filter(r => r.date === new Date().toISOString().split('T')[0]).length}/128`, icon: '✅', color: 'bg-emerald-500' },
+    { label: 'Today Attendance', value: `${attendanceTodayCount}/128`, icon: '✅', color: 'bg-emerald-500' },
     { label: 'Pending Payroll', value: '12', icon: '⏳', color: 'bg-amber-500' },
     { label: 'Monthly Payout', value: '$45.2k', icon: '💰', color: 'bg-indigo-500' },
   ] : workerStats;
